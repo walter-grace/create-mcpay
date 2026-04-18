@@ -1,19 +1,27 @@
 /**
- * Agent Gateway template — single-file Cloudflare Worker.
+ * mcpay template — single-file Cloudflare Worker for pay-per-call agent APIs.
  *
- * Reusable primitives for pay-per-call agent APIs. Replace the
- * `/v1/example` handler with your own paid tools.
+ * Reusable primitives: bearer-token auth, mcent pricing, scoped keys,
+ * XP leaderboard, admin-gated key minting. Replace the `/v1/example`
+ * handler with your own paid tools.
  *
  * See the companion README.md for setup + deploy.
+ *
+ * Security posture of this template:
+ *   - hasScope() is DEFAULT-DENY: undefined/empty scopes grant nothing.
+ *     Callers must mint keys with an explicit scopes list.
+ *   - Admin mint uses timingSafeEqual + crypto.getRandomValues.
+ *   - handleExample validates the body BEFORE debiting — copy this pattern.
+ *   - KV is eventually-consistent; concurrent charges on the same key can
+ *     race to overdraft. For production, move balance into a Durable Object
+ *     and wrap mutations in state.blockConcurrencyWhile(). The DO stub
+ *     below is where you'd add that.
  */
 
 export interface Env {
   KEYS: KVNamespace;
   LEADERBOARD: DurableObjectNamespace;
   ADMIN_KEY: string;
-  PAYMENT_RECIPIENT: string; // 0x... Base wallet receiving USDC
-  CDP_API_KEY_ID?: string;   // optional; free x402.org used if missing
-  CDP_API_KEY_SECRET?: string;
 }
 
 // ---- Types -----------------------------------------------------------------
@@ -45,14 +53,22 @@ type KeyRecord = {
   calls_total: number;
   calls_by_type: Partial<Record<CallType, number>>;
   badges: string[];
-  scopes?: Scope[];
+  // Scopes are required — no default-allow. Mint with e.g. ["example", "read"]
+  // or ["all"] to grant everything.
+  scopes: Scope[];
 };
 
 // ---- Primitives: auth + scope + charge ------------------------------------
 
+/**
+ * DEFAULT-DENY. If `scopes` is missing or empty, returns false — the key
+ * has no permission. Callers must mint keys with an explicit scopes list.
+ * Whitehat-audited: the previous default-allow-on-undefined pattern is a
+ * classic privilege-escalation footgun.
+ */
 function hasScope(rec: KeyRecord, needed: Scope): boolean {
   const s = rec.scopes;
-  if (!s || s.length === 0) return true;
+  if (!Array.isArray(s) || s.length === 0) return false;
   if (s.includes("all")) return true;
   return s.includes(needed);
 }
@@ -91,6 +107,39 @@ function error(status: number, message: string, extra?: any): Response {
   return json({ ok: false, error: message, ...(extra || {}) }, { status });
 }
 
+/**
+ * Timing-safe comparison of two equal-length strings. Short-circuits on
+ * length mismatch (safe — attacker can already measure length via Content-
+ * Length / response timing on a mismatch). Main defense: constant-time scan
+ * of the matching bytes.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function generateApiKey(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `k_${hex}`;
+}
+
+/**
+ * Auth + debit + XP award. Split from validation: ALWAYS validate your
+ * request body BEFORE calling this function, or a malformed request will
+ * burn mcents. See handleExample for the canonical pattern.
+ *
+ * Known caveat: KV reads+writes here are NOT atomic. Under concurrent burst
+ * traffic to the same key, multiple requests can pass the balance check and
+ * debit from the same baseline (TOCTOU overdraft). For production, move this
+ * to a Durable Object with blockConcurrencyWhile(). The template leaves it
+ * on KV to keep the scaffold readable.
+ */
 async function authAndCharge(
   req: Request,
   env: Env,
@@ -104,7 +153,7 @@ async function authAndCharge(
 
   const needed = SCOPE_FOR[call_type];
   if (!hasScope(rec, needed)) {
-    return error(403, `not authorized for "${needed}"`, { scopes: rec.scopes });
+    return error(403, `not authorized for scope "${needed}"`, { scopes: rec.scopes });
   }
 
   if (rec.balance_mcents < cost_mcents) {
@@ -129,14 +178,79 @@ async function authAndCharge(
   return { ok: true, record: updated, key };
 }
 
+// ---- Admin: mint new keys -------------------------------------------------
+
+/**
+ * POST /v1/admin/mint
+ * Headers: X-Admin-Key: <env.ADMIN_KEY>
+ * Body:    { "balance_mcents": 100, "scopes": ["example"], "display_name"?: "..." }
+ *
+ * Returns the generated key ONCE. Store it client-side immediately — the
+ * server never returns it again. Opinionated: scopes is REQUIRED.
+ */
+async function handleAdminMint(req: Request, env: Env): Promise<Response> {
+  const provided = req.headers.get("X-Admin-Key") || "";
+  if (!env.ADMIN_KEY || !timingSafeEqual(provided, env.ADMIN_KEY)) {
+    return error(401, "invalid admin key");
+  }
+
+  const body: any = await req.json().catch(() => ({}));
+  const balance_mcents = Math.max(0, Number(body.balance_mcents) || 0);
+  const validScopes: Scope[] = ["example", "read", "all"];
+  const scopes: Scope[] = Array.isArray(body.scopes)
+    ? body.scopes.filter((s: any): s is Scope => validScopes.includes(s))
+    : [];
+
+  if (scopes.length === 0) {
+    return error(400, 'scopes required: array of ["example","read","all"]', {
+      note: "default-deny: a key with no scopes cannot call any paid endpoint",
+    });
+  }
+
+  const key = generateApiKey();
+  const now = Date.now();
+  const rec: KeyRecord = {
+    balance_mcents,
+    xp: 0,
+    created_at: now,
+    last_active_at: now,
+    display_name: body.display_name ? String(body.display_name).slice(0, 32) : undefined,
+    calls_total: 0,
+    calls_by_type: {},
+    badges: [],
+    scopes,
+  };
+  await writeKey(env, key, rec);
+  return json({ ok: true, key, balance_mcents, scopes });
+}
+
 // ---- Example handler (replace with your own) ------------------------------
 
+/**
+ * Pattern: validate body FIRST (no charge on bad shape), THEN authAndCharge.
+ * Copy this sequence into your real handlers or users will burn mcents on
+ * typos before any work runs.
+ */
 async function handleExample(req: Request, env: Env): Promise<Response> {
+  // 1. Validate body first — malformed requests don't get charged.
+  const body: any = await req.json().catch(() => null);
+  if (!body || typeof body.message !== "string" || body.message.length === 0) {
+    return error(400, 'missing required field "message" (non-empty string)', {
+      expected: { message: "<your input>" },
+      note: "no charge applied",
+    });
+  }
+
+  // 2. Auth + charge. Only runs if validation passed.
   const auth = await authAndCharge(req, env, PRICE_MCENTS.example, "example");
   if (auth instanceof Response) return auth;
+
+  // 3. Do the work. If this throws, the mcents are already debited —
+  //    implement refund logic (see the DLF reference implementation) if your
+  //    handler can fail on transient issues.
   return json({
     ok: true,
-    message: "Hello from your agent gateway. Replace this handler with real work.",
+    echoed: body.message.slice(0, 200),
     balance_mcents: auth.record.balance_mcents,
     xp: auth.record.xp,
     level: level(auth.record.xp),
@@ -156,7 +270,9 @@ export default {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Admin-Key",
+          // Intentionally omit X-Admin-Key — don't advertise admin headers
+          // via preflight. Admin tooling uses non-browser clients anyway.
+          "Access-Control-Allow-Headers": "Authorization, Content-Type",
         },
       });
     }
@@ -164,16 +280,21 @@ export default {
     if (p === "/v1/health") return json({ ok: true, ts: Date.now() });
     if (p === "/v1/pricing") return json({ prices_mcents: PRICE_MCENTS });
     if (p === "/v1/example" && req.method === "POST") return handleExample(req, env);
+    if (p === "/v1/admin/mint" && req.method === "POST") return handleAdminMint(req, env);
 
-    return error(404, `route not found: ${req.method} ${p}`);
+    // Flat 404 — don't echo method+path (minor recon hardening).
+    return error(404, "not found");
   },
 };
 
-// Durable Object stub (expand with leaderboard + activity in the real repo).
+// ---- Durable Object stub ---------------------------------------------------
+// For production, move balance + charging into this DO so concurrent mutations
+// on the same key are serialized via state.blockConcurrencyWhile(). The KV
+// path above has a TOCTOU window on bursts to the same key.
 export class LeaderboardDO {
   state: DurableObjectState;
   constructor(state: DurableObjectState) { this.state = state; }
-  async fetch(req: Request): Promise<Response> {
-    return new Response("stub");
+  async fetch(_req: Request): Promise<Response> {
+    return new Response("stub — move balance + leaderboard here for atomic updates");
   }
 }

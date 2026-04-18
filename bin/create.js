@@ -14,13 +14,14 @@ if (!name) {
 }
 
 const target = path.resolve(process.cwd(), name);
+// Use the directory's basename as the Worker/package identifier even if the
+// user passed a longer path like "./projects/my-api". Hoisted above the
+// existsSync check so the error message uses the resolved name.
+const projectName = path.basename(target);
 if (fs.existsSync(target)) {
   console.error(`error: directory "${projectName}" already exists`);
   process.exit(1);
 }
-// Use the directory's basename as the Worker/package identifier even if the
-// user passed a longer path like "./projects/my-api".
-const projectName = path.basename(target);
 
 fs.mkdirSync(target, { recursive: true });
 fs.mkdirSync(path.join(target, "src"), { recursive: true });
@@ -78,7 +79,7 @@ fs.writeFileSync(path.join(target, "README.md"), `# ${projectName}
 
 A pay-per-call agent gateway built on Cloudflare Workers.
 
-Scaffolded with [create-agent-gateway](https://npm.im/create-agent-gateway).
+Scaffolded with [create-mcpay](https://npm.im/create-mcpay).
 
 ## Setup
 
