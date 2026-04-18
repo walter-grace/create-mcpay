@@ -1,6 +1,6 @@
 # create-agent-gateway
 
-A reusable Cloudflare Worker template for pay-per-call agent gateways — the pattern behind [Data Label Factory](https://data-label-factory.vercel.app)'s `dlf-gateway`.
+A reusable Cloudflare Worker template for pay-per-call agent gateways. Spin up a fully-featured agent API — auth, billing, reputation, discovery — in ~2 minutes.
 
 ## What you get out of the box
 
@@ -67,10 +67,6 @@ if (p === "/v1/mytool" && req.method === "POST") return handleMyTool(req, env);
 
 Add it to the MCP manifest + Agent Skills index + add a scope constant if you want per-key access control.
 
-## Reference implementation
-
-See the full production code at [data-label-factory/agent-gateway](https://github.com/YOURORG/data-label-factory/tree/main/agent-gateway) — same skeleton, plus DLF-specific handlers for vision labeling, YOLO training, and image gather.
-
 ## License
 
-MIT. Fork, remix, commercialize — just credit the pattern.
+MIT. Fork, remix, commercialize.
