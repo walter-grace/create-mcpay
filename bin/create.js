@@ -33,9 +33,9 @@ fs.writeFileSync(path.join(target, "wrangler.toml"), `name = "${projectName}"
 main = "src/index.ts"
 compatibility_date = "${new Date().toISOString().slice(0, 10)}"
 
-[[kv_namespaces]]
-binding = "KEYS"
-id = "CHANGEME_run_wrangler_kv_namespace_create_KEYS"
+# v0.3.0: balances and charging live in the Durable Object (atomic via
+# blockConcurrencyWhile). KV is no longer used by the template — bearer
+# tokens and records are stored under SHA-256 hashes inside DO storage.
 
 [[durable_objects.bindings]]
 name = "LEADERBOARD"
