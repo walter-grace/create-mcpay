@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Cloudflare Worker template for pay-per-call agent gateways: x402 signup, mcent pricing, scoped keys, XP leaderboard, MCP server, Agent Readiness.",
   "bin": {
-    "create-mcpay": "./bin/create.js"
+    "create-mcpay": "bin/create.js"
   },
   "keywords": [
     "cloudflare-workers",
