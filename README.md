@@ -1,6 +1,8 @@
-# create-agent-gateway
+# create-mcpay
 
 A reusable Cloudflare Worker template for pay-per-call agent gateways. Spin up a fully-featured agent API — auth, billing, reputation, discovery — in ~2 minutes.
+
+**mcpay** — because every call costs a few mcents (1 mcent = 1/1000¢). Agents pay in crypto via [x402](https://www.x402.org), you keep the revenue.
 
 ## What you get out of the box
 
@@ -28,7 +30,7 @@ Stripe, OAuth, and dashboards add friction agents can't traverse. This stack ski
 ## Quickstart
 
 ```bash
-npx create-agent-gateway my-api
+npx create-mcpay my-api
 cd my-api
 npm install
 wrangler kv:namespace create KEYS                 # grab the id

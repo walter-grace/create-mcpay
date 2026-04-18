@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * create-agent-gateway <name>
+ * create-mcpay <name>
  *
- * Scaffolds a new Cloudflare Worker project with the agent gateway template.
+ * Scaffolds a new Cloudflare Worker project with the mcpay agent gateway template.
  */
 const fs = require("fs");
 const path = require("path");
 
 const name = process.argv[2];
 if (!name) {
-  console.error("usage: create-agent-gateway <project-name>");
+  console.error("usage: create-mcpay <project-name>");
   process.exit(1);
 }
 
