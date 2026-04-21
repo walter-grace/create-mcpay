@@ -32,6 +32,7 @@ fs.writeFileSync(path.join(target, "src", "index.ts"), templateSrc);
 fs.writeFileSync(path.join(target, "wrangler.toml"), `name = "${projectName}"
 main = "src/index.ts"
 compatibility_date = "${new Date().toISOString().slice(0, 10)}"
+compatibility_flags = ["nodejs_compat"]
 
 # Balances and charging live in the Durable Object (atomic via
 # blockConcurrencyWhile). KV is no longer used — bearer tokens and records

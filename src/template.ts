@@ -162,6 +162,7 @@ type MintRequest = {
   admin_key_attestation: string;
   key_hash: string;
   rec: KeyRecord;
+  source?: "admin" | "signup"; // determines which rate-limit window to check
 };
 type DoMessage = ChargeRequest | ReadRequest | MintRequest;
 
@@ -258,17 +259,23 @@ export class LeaderboardDO {
     // Rate limit: max N mints per hour, tracked inside the DO so it's
     // global across all Worker instances.
     const now = Date.now();
-    const window = ((await this.state.storage.get<number[]>("_mint_window")) || [])
+    // Separate windows: admin is capped tightly (10/hr), signup is higher (1000/hr)
+    // so a wave of paid signups can't freeze out the human operator.
+    const windowKey = msg.source === "signup" ? "_signup_mint_window" : "_mint_window";
+    const limit = msg.source === "signup" ? 1000 : MAX_MINTS_PER_HOUR;
+    const window = ((await this.state.storage.get<number[]>(windowKey)) || [])
       .filter((t) => now - t < 3_600_000);
-    if (window.length >= MAX_MINTS_PER_HOUR) {
+    if (window.length >= limit) {
       return Response.json({
         ok: false, status: 429,
-        error: `admin mint rate limit (${MAX_MINTS_PER_HOUR}/hr)`,
+        error: msg.source === "signup"
+          ? `signup rate limit (${limit}/hr)`
+          : `admin mint rate limit (${limit}/hr)`,
         retry_after_ms: 3_600_000 - (now - window[0]),
       });
     }
     window.push(now);
-    await this.state.storage.put("_mint_window", window);
+    await this.state.storage.put(windowKey, window);
 
     await this.state.storage.put(`k:${msg.key_hash}`, msg.rec);
     return Response.json({ ok: true });
@@ -433,22 +440,29 @@ async function handleSignup(req: Request, env: Env): Promise<Response> {
 
   const mppx = Mppx.create({ methods, secretKey: env.MPP_SECRET_KEY, realm: new URL(req.url).hostname });
 
-  // compose() presents all configured methods in a single 402 — client picks one.
-  // mppx.tempo / mppx.stripe are typed dynamically, so cast for conditional access.
-  const m = mppx as any;
-  const entries: any[] = [];
-  if (tempoEnabled)  entries.push(m.tempo.charge({ amount: String(priceCents * 10_000) }));
-  if (stripeEnabled) entries.push(m.stripe.charge({ amount: String(priceCents) }));
+  // compose() expects [methodKey, perCallOptions] tuples — one per configured method.
+  // String keys ("tempo/charge", "stripe/charge") are the stable way to reference them.
+  // mppx amounts are in whole token units — "0.1" = $0.10 USDC / USD.
+  // Internally mppx calls parseUnits(amount, decimals) to get base units.
+  const amountUsd = String(priceCents / 100);
+  const entries: [string, Record<string, unknown>][] = [];
+  if (tempoEnabled)  entries.push(["tempo/charge",  { amount: amountUsd }]);
+  if (stripeEnabled) entries.push(["stripe/charge", { amount: amountUsd }]);
 
   let result: any;
   try {
-    result = await m.compose(...entries)(req);
+    result = await (mppx as any).compose(...entries)(req);
   } catch (err: any) {
     return error(500, `mpp error: ${err?.message ?? err}`);
   }
 
-  // 402 → return the challenge response mppx built (has WWW-Authenticate header)
-  if (result.status === 402) return result.challenge;
+  // Only proceed to mint on a verified 200. Any other status (402, 401, 400, 500)
+  // must be returned as-is — falling through would mint a key without payment.
+  if (result.status !== 200) {
+    return result.challenge instanceof Response
+      ? result.challenge
+      : error(result.status ?? 402, "payment required or verification failed");
+  }
 
   // Payment verified — mint a key
   const balance_mcents = Math.min(
@@ -478,7 +492,7 @@ async function handleSignup(req: Request, env: Env): Promise<Response> {
   const doResp = await doStub(env).fetch(new Request("https://do/mint", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ op: "mint", admin_key_attestation: env.ADMIN_KEY, key_hash, rec } as MintRequest),
+    body: JSON.stringify({ op: "mint", admin_key_attestation: env.ADMIN_KEY, key_hash, rec, source: "signup" } as MintRequest),
   }));
   const r: any = await doResp.json();
   if (!r.ok) return error(r.status || 500, r.error);
