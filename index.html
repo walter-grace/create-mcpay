@@ -18,7 +18,11 @@
     --code-bg:#0f172a;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     background: var(--bg);
     color: var(--text);
@@ -57,14 +61,21 @@
     letter-spacing: 0.05em;
     font-family: 'Courier New', monospace;
   }
-  .nav-links { display: flex; gap: 2rem; }
+  .nav-links { display: flex; gap: 0.5rem; }
   .nav-links a {
     color: var(--muted);
     text-decoration: none;
     font-size: 0.875rem;
-    transition: color 0.2s;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    transition-property: color, background;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
   }
-  .nav-links a:hover { color: var(--text); }
+  .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
   .nav-badge {
     font-size: 0.75rem;
     padding: 0.25rem 0.75rem;
@@ -106,6 +117,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    text-wrap: balance;
   }
   .hero-sub {
     font-size: 1.25rem;
@@ -113,6 +125,7 @@
     max-width: 600px;
     line-height: 1.7;
     margin-bottom: 1rem;
+    text-wrap: pretty;
   }
   .payment-pills {
     display: flex;
@@ -146,10 +159,14 @@
     font-size: 1.1rem;
     color: var(--green);
     cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition-property: border-color, box-shadow, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
     position: relative;
     overflow: hidden;
+    will-change: transform;
   }
+  .hero-cmd:active { scale: 0.96; }
   .hero-cmd::before {
     content: '';
     position: absolute;
@@ -173,11 +190,16 @@
     border-radius: 16px;
     padding: 2rem;
     backdrop-filter: blur(8px);
-    transition: border-color 0.3s, transform 0.3s;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.3);
+    transition-property: border-color, box-shadow, translate;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
+    will-change: translate;
   }
   .card:hover {
     border-color: rgba(255,255,255,0.15);
-    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 8px 40px rgba(0,0,0,0.4);
+    translate: 0 -2px;
   }
 
   /* ---- Section headings ---- */
@@ -194,13 +216,16 @@
     font-weight: 700;
     letter-spacing: -0.02em;
     margin-bottom: 1rem;
+    text-wrap: balance;
   }
+  h3 { text-wrap: balance; }
   .section-intro {
     color: var(--muted);
     font-size: 1.1rem;
     line-height: 1.7;
     max-width: 600px;
     margin-bottom: 4rem;
+    text-wrap: pretty;
   }
 
   /* ---- Features grid ---- */
@@ -215,16 +240,18 @@
     border-radius: 16px;
     padding: 1.75rem;
     backdrop-filter: blur(8px);
-    transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 2px 12px rgba(0,0,0,0.25);
+    transition-property: border-color, box-shadow, translate;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
     cursor: default;
+    will-change: translate;
   }
-  .feature-card:hover {
-    transform: translateY(-4px);
-  }
-  .feature-card.green:hover  { border-color: rgba(0,255,136,0.4);  box-shadow: 0 8px 40px rgba(0,255,136,0.08); }
-  .feature-card.blue:hover   { border-color: rgba(99,102,241,0.4); box-shadow: 0 8px 40px rgba(99,102,241,0.08); }
-  .feature-card.gold:hover   { border-color: rgba(245,158,11,0.4); box-shadow: 0 8px 40px rgba(245,158,11,0.08); }
-  .feature-card.pink:hover   { border-color: rgba(236,72,153,0.4); box-shadow: 0 8px 40px rgba(236,72,153,0.08); }
+  .feature-card:hover { translate: 0 -4px; }
+  .feature-card.green:hover  { border-color: rgba(0,255,136,0.4);  box-shadow: 0 0 0 1px rgba(0,255,136,0.1), 0 12px 40px rgba(0,255,136,0.1); }
+  .feature-card.blue:hover   { border-color: rgba(99,102,241,0.4); box-shadow: 0 0 0 1px rgba(99,102,241,0.1), 0 12px 40px rgba(99,102,241,0.1); }
+  .feature-card.gold:hover   { border-color: rgba(245,158,11,0.4); box-shadow: 0 0 0 1px rgba(245,158,11,0.1), 0 12px 40px rgba(245,158,11,0.1); }
+  .feature-card.pink:hover   { border-color: rgba(236,72,153,0.4); box-shadow: 0 0 0 1px rgba(236,72,153,0.1), 0 12px 40px rgba(236,72,153,0.1); }
   .feature-icon {
     width: 44px; height: 44px;
     border-radius: 10px;
@@ -237,7 +264,7 @@
   .feature-icon.gold  { background: rgba(245,158,11,0.1); }
   .feature-icon.pink  { background: rgba(236,72,153,0.1); }
   .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .feature-card p  { font-size: 0.875rem; color: var(--muted); line-height: 1.6; }
+  .feature-card p  { font-size: 0.875rem; color: var(--muted); line-height: 1.6; text-wrap: pretty; }
 
   /* ---- Flow diagram ---- */
   .flow-container {
@@ -348,8 +375,9 @@
     font-family: monospace;
     line-height: 1;
     margin-bottom: 0.25rem;
+    font-variant-numeric: tabular-nums;
   }
-  .stat-label { font-size: 0.8rem; color: var(--muted); }
+  .stat-label { font-size: 0.8rem; color: var(--muted); text-wrap: pretty; }
 
   /* ---- Terminal ---- */
   .terminal {
@@ -461,9 +489,13 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition-property: translate, box-shadow, border-color, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
+    will-change: translate;
   }
-  .btn:hover { transform: translateY(-2px); }
+  .btn:hover { translate: 0 -2px; }
+  .btn:active { scale: 0.96; }
   .btn-primary {
     background: var(--green);
     color: #000;
@@ -573,7 +605,7 @@
     justify-content: flex-end;
   }
   .btn-transform {
-    padding: 0.6rem 2rem;
+    padding: 0.65rem 2rem;
     background: var(--green);
     color: #000;
     border: none;
@@ -585,10 +617,14 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    transition: box-shadow 0.2s, opacity 0.2s;
+    min-height: 40px;
+    transition-property: box-shadow, opacity, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
     box-shadow: 0 0 20px rgba(0,255,136,0.25);
   }
   .btn-transform:hover { box-shadow: 0 0 40px rgba(0,255,136,0.5); }
+  .btn-transform:active:not(:disabled) { scale: 0.96; }
   .btn-transform:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-copy-out {
     background: transparent;
@@ -596,12 +632,16 @@
     border-radius: 6px;
     color: var(--muted);
     font-size: 0.72rem;
-    padding: 0.25rem 0.65rem;
+    padding: 0.5rem 0.9rem;
+    min-height: 32px;
     cursor: pointer;
     font-family: monospace;
-    transition: border-color 0.2s, color 0.2s;
+    transition-property: border-color, color;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
   }
   .btn-copy-out:hover { border-color: var(--green); color: var(--green); }
+  .btn-copy-out:active { scale: 0.96; }
   .transform-note {
     font-size: 0.72rem;
     color: rgba(255,255,255,0.25);
@@ -631,11 +671,25 @@
   }
   footer a { color: var(--green); text-decoration: none; }
 
+  /* ---- Hero stagger ---- */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); filter: blur(4px); }
+    to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+  }
+  .hero-eyebrow { animation: fadeUp 0.5s ease-out both; animation-delay: 0.05s; }
+  .hero h1      { animation: fadeUp 0.5s ease-out both; animation-delay: 0.15s; }
+  .hero-sub     { animation: fadeUp 0.5s ease-out both; animation-delay: 0.25s; }
+  .payment-pills{ animation: fadeUp 0.5s ease-out both; animation-delay: 0.35s; }
+  .hero-cmd     { animation: fadeUp 0.5s ease-out both; animation-delay: 0.45s; }
+  .copy-hint    { animation: fadeUp 0.4s ease-out both; animation-delay: 0.52s; }
+
   /* ---- Scroll reveal ---- */
   .reveal {
     opacity: 0;
-    transform: translateY(30px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
+    transform: translateY(24px);
+    transition-property: opacity, transform;
+    transition-duration: 0.55s;
+    transition-timing-function: ease-out;
   }
   .reveal.visible { opacity: 1; transform: translateY(0); }
 </style>
