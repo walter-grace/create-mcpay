@@ -1,7 +1,7 @@
 /**
  * mcpay template — single-file Cloudflare Worker for pay-per-call agent APIs.
  *
- * v0.4.0 architecture: the Durable Object is the SINGLE SOURCE OF TRUTH for
+ * v0.5.0 architecture: the Durable Object is the SINGLE SOURCE OF TRUTH for
  * auth, pricing, scoping, and charging. The Worker is a thin router that
  * converts HTTP → DO RPC. It does NOT know prices. It does NOT enforce
  * scopes. It does NOT compute fees. This closes a structural blind spot
@@ -301,7 +301,10 @@ async function handleAdminMint(req: Request, env: Env): Promise<Response> {
   let body: any;
   try { body = JSON.parse(raw); } catch { body = {}; }
 
-  const n = Number(body.balance_mcents);
+  if (typeof body.balance_mcents !== "number") {
+    return error(400, "balance_mcents must be a number", {}, false);
+  }
+  const n = body.balance_mcents;
   if (!Number.isFinite(n) || n < 0) {
     return error(400, "balance_mcents must be a finite non-negative number", {}, false);
   }

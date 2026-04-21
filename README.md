@@ -33,7 +33,7 @@ curl -X POST https://<your-worker>.workers.dev/v1/example \
   -d '{"message":"hello"}'
 ```
 
-## Security posture (v0.3.0, whitehat-audited twice)
+## Security posture (v0.5.0, battle-tested across 36 attack scenarios)
 
 - **Bearer tokens stored HASHED** (SHA-256). Raw tokens live only at mint time + in the holder's memory. A KV/DO dump exposes no live keys.
 - **Atomic charging via Durable Object** with `blockConcurrencyWhile` — no TOCTOU overdraft under burst traffic.
@@ -101,6 +101,7 @@ Add to `CallType`, `PRICE_MCENTS`, `XP_AWARD`, `SCOPE_FOR`, plus a scope string.
 
 ## Changelog
 
+- **0.5.0** — strict type check on `balance_mcents` at mint: string/boolean inputs now rejected with 400 instead of being silently coerced via `Number()`. Battle-tested across 36 attack scenarios.
 - **0.3.0** — SHA-256-hashed token storage (was: raw bearer as KV key), atomic charging via Durable Object (was: TOCTOU-prone KV rmw), admin mint balance ceiling, bounded body reads, `mcp_` service-namespaced key prefix, 503 on admin when unset (no timing oracle), no CORS on admin paths. Second whitehat audit clean.
 - **0.2.0** — default-deny scopes, opinionated admin mint route, validate-before-charge in example, hoisted `projectName` in scaffolder, flat 404, `X-Admin-Key` removed from CORS preflight.
 - **0.1.0** — initial release.
