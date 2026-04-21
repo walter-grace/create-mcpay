@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>create-mcpay — Pay-per-call agent APIs in 2 minutes</title>
+<style>
+  :root {
+    --green:  #00ff88;
+    --blue:   #6366f1;
+    --gold:   #f59e0b;
+    --pink:   #ec4899;
+    --bg:     #050510;
+    --glass:  rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --text:   #e2e8f0;
+    --muted:  #94a3b8;
+    --code-bg:#0f172a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ---- Canvas ---- */
+  #canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ---- Layout ---- */
+  .page { position: relative; z-index: 1; }
+
+  /* ---- Nav ---- */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background: rgba(5,5,16,0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--green);
+    letter-spacing: 0.05em;
+    font-family: 'Courier New', monospace;
+  }
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--green);
+    color: var(--green);
+    border-radius: 999px;
+    font-family: monospace;
+  }
+
+  /* ---- Sections ---- */
+  section { padding: 8rem 2rem; max-width: 1100px; margin: 0 auto; }
+
+  /* ---- Hero ---- */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding-top: 6rem;
+    max-width: 100%;
+  }
+  .hero-eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 1.5rem;
+    font-family: monospace;
+  }
+  .hero h1 {
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #fff 0%, var(--green) 50%, var(--blue) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: 1.25rem;
+    color: var(--muted);
+    max-width: 600px;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+  }
+  .payment-pills {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+  .pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid;
+    font-family: monospace;
+    letter-spacing: 0.05em;
+  }
+  .pill-green  { color: var(--green); border-color: var(--green); background: rgba(0,255,136,0.06); }
+  .pill-blue   { color: #818cf8;      border-color: #818cf8;      background: rgba(99,102,241,0.08); }
+  .pill-gold   { color: var(--gold);  border-color: var(--gold);  background: rgba(245,158,11,0.07); }
+  .pill-pink   { color: var(--pink);  border-color: var(--pink);  background: rgba(236,72,153,0.07); }
+  .hero-cmd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    color: var(--green);
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-cmd::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(0,255,136,0.03), transparent);
+    animation: shimmer 2s infinite;
+  }
+  @keyframes shimmer { 0%,100%{transform:translateX(-100%)} 50%{transform:translateX(100%)} }
+  .hero-cmd:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 30px rgba(0,255,136,0.15);
+  }
+  .cmd-dollar { color: #64748b; }
+  .copy-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.75rem; }
+  .copied { color: var(--green) !important; }
+
+  /* ---- Glass card ---- */
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    backdrop-filter: blur(8px);
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .card:hover {
+    border-color: rgba(255,255,255,0.15);
+    transform: translateY(-2px);
+  }
+
+  /* ---- Section headings ---- */
+  .section-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--green);
+    font-family: monospace;
+    margin-bottom: 1rem;
+  }
+  h2 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+  .section-intro {
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1.7;
+    max-width: 600px;
+    margin-bottom: 4rem;
+  }
+
+  /* ---- Features grid ---- */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+  .feature-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    backdrop-filter: blur(8px);
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    cursor: default;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+  }
+  .feature-card.green:hover  { border-color: rgba(0,255,136,0.4);  box-shadow: 0 8px 40px rgba(0,255,136,0.08); }
+  .feature-card.blue:hover   { border-color: rgba(99,102,241,0.4); box-shadow: 0 8px 40px rgba(99,102,241,0.08); }
+  .feature-card.gold:hover   { border-color: rgba(245,158,11,0.4); box-shadow: 0 8px 40px rgba(245,158,11,0.08); }
+  .feature-card.pink:hover   { border-color: rgba(236,72,153,0.4); box-shadow: 0 8px 40px rgba(236,72,153,0.08); }
+  .feature-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+  .feature-icon.green { background: rgba(0,255,136,0.1); }
+  .feature-icon.blue  { background: rgba(99,102,241,0.1); }
+  .feature-icon.gold  { background: rgba(245,158,11,0.1); }
+  .feature-icon.pink  { background: rgba(236,72,153,0.1); }
+  .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .feature-card p  { font-size: 0.875rem; color: var(--muted); line-height: 1.6; }
+
+  /* ---- Flow diagram ---- */
+  .flow-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+  }
+  .flow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 140px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .flow-step.visible { opacity: 1; transform: translateY(0); }
+  .flow-dot {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    border: 2px solid;
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+  }
+  .flow-dot.green { border-color: var(--green); box-shadow: 0 0 20px rgba(0,255,136,0.3); }
+  .flow-dot.blue  { border-color: #818cf8;      box-shadow: 0 0 20px rgba(99,102,241,0.3); }
+  .flow-dot.gold  { border-color: var(--gold);  box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+  .flow-dot.pink  { border-color: var(--pink);  box-shadow: 0 0 20px rgba(236,72,153,0.3); }
+  .flow-label { font-size: 0.8rem; font-weight: 600; margin-top: 0.75rem; text-align: center; }
+  .flow-desc  { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 0.35rem; max-width: 110px; line-height: 1.5; }
+  .flow-arrow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 0.25rem;
+    margin-top: 1.5rem;
+    color: #334155;
+    font-size: 1.2rem;
+  }
+
+  /* ---- Code block ---- */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .code-dot.red    { background: #ef4444; }
+  .code-dot.yellow { background: #f59e0b; }
+  .code-dot.green  { background: #22c55e; }
+  .code-filename { font-size: 0.75rem; color: var(--muted); margin-left: 0.5rem; }
+  .code-body { padding: 1.25rem 1.5rem; line-height: 1.8; overflow-x: auto; }
+  .code-body pre { margin: 0; white-space: pre; }
+  .t-comment { color: #475569; }
+  .t-cmd     { color: var(--green); }
+  .t-key     { color: #818cf8; }
+  .t-str     { color: #f59e0b; }
+  .t-kw      { color: var(--pink); }
+  .t-type    { color: #38bdf8; }
+  .t-muted   { color: #64748b; }
+
+  /* ---- Two-col layout ---- */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+  }
+
+  /* ---- Stats row ---- */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1.5rem;
+    margin-top: 4rem;
+  }
+  .stat-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    font-family: monospace;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+  .stat-label { font-size: 0.8rem; color: var(--muted); }
+
+  /* ---- Terminal ---- */
+  .terminal {
+    background: #020408;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+  }
+  .term-header {
+    background: #0f172a;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid #1e293b;
+  }
+  .term-body {
+    padding: 1.25rem 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    line-height: 2;
+  }
+  .term-line { display: flex; gap: 0.5rem; }
+  .term-ps { color: #334155; }
+  .term-cmd { color: var(--green); }
+  .term-out { color: #64748b; padding-left: 1rem; }
+  .term-success { color: var(--green); padding-left: 1rem; }
+  .term-json { color: #38bdf8; padding-left: 1rem; }
+
+  /* ---- Agent section ---- */
+  .agent-flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1.5rem;
+    align-items: center;
+    margin-top: 2rem;
+  }
+  .agent-box {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .agent-box-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .agent-box-label { font-size: 0.85rem; font-weight: 600; }
+  .agent-box-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+  .agent-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .arrow-line {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--blue), var(--green));
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '▶';
+    position: absolute;
+    right: -8px;
+    top: -8px;
+    font-size: 0.6rem;
+    color: var(--green);
+  }
+  .arrow-label { font-size: 0.65rem; color: var(--muted); font-family: monospace; }
+
+  /* ---- Security badges ---- */
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid;
+  }
+  .badge.green { color: var(--green); border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.05); }
+  .badge.blue  { color: #818cf8;      border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.05); }
+  .badge.gold  { color: var(--gold);  border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
+
+  /* ---- CTA ---- */
+  .cta-section {
+    text-align: center;
+    padding: 6rem 2rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .cta-section h2 { margin-bottom: 1rem; }
+  .cta-section p { color: var(--muted); font-size: 1.1rem; margin-bottom: 3rem; }
+  .btn-row { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    padding: 0.85rem 1.75rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 30px rgba(0,255,136,0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 0 50px rgba(0,255,136,0.5); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.2); }
+
+  /* ---- Footer ---- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: monospace;
+  }
+  footer a { color: var(--green); text-decoration: none; }
+
+  /* ---- Scroll reveal ---- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<nav>
+  <div class="nav-logo">create-mcpay</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#agents">With agents</a>
+    <a href="#quickstart">Quickstart</a>
+  </div>
+  <div class="nav-badge">v0.7.0</div>
+</nav>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <p class="hero-eyebrow">✦ Cloudflare Workers · Durable Objects · MPP</p>
+    <h1>create-mcpay</h1>
+    <p class="hero-sub">
+      Spin up a fully-featured pay-per-call agent API in 2 minutes.
+      Auth, billing, reputation — all in one file.
+    </p>
+    <div class="payment-pills">
+      <span class="pill pill-green">⚡ Tempo</span>
+      <span class="pill pill-blue">💳 Stripe</span>
+      <span class="pill pill-gold">₿ Lightning</span>
+      <span class="pill pill-pink">🔗 x402</span>
+    </div>
+    <div class="hero-cmd" onclick="copyCmd(this)">
+      <span class="cmd-dollar">$</span>
+      <span>npx create-mcpay my-api</span>
+    </div>
+    <p class="copy-hint" id="copy-hint">click to copy</p>
+  </div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <p class="section-label reveal">What makes it different</p>
+    <h2 class="reveal">Built for the<br>agentic economy</h2>
+    <p class="section-intro reveal">
+      Every design decision optimises for autonomous agents calling your API
+      at scale — zero human in the loop, zero trust violations.
+    </p>
+
+    <div class="features-grid">
+      <div class="feature-card green reveal">
+        <div class="feature-icon green">⚛️</div>
+        <h3>Atomic billing, no TOCTOU</h3>
+        <p>All charging happens inside a single Durable Object with <code>blockConcurrencyWhile</code>. Ten concurrent calls on a 100mc balance? Exactly one wins. Every time.</p>
+      </div>
+      <div class="feature-card blue reveal">
+        <div class="feature-icon blue">🔑</div>
+        <h3>SHA-256 hashed tokens</h3>
+        <p>Raw bearer tokens are never persisted. A full KV or DO dump exposes zero live keys. The token lives only at mint time and in the holder's memory.</p>
+      </div>
+      <div class="feature-card gold reveal">
+        <div class="feature-icon gold">🌐</div>
+        <h3>MPP native — Stripe + crypto</h3>
+        <p>One <code>/v1/signup</code> endpoint accepts Tempo stablecoin, Stripe card, or both simultaneously via Machine Payments Protocol. x402 clients work unchanged.</p>
+      </div>
+      <div class="feature-card pink reveal">
+        <div class="feature-icon pink">🚫</div>
+        <h3>Default-deny scopes</h3>
+        <p>A key minted without explicit scopes can call nothing. Every endpoint maps to exactly one scope. No implicit all-access, ever.</p>
+      </div>
+      <div class="feature-card blue reveal">
+        <div class="feature-icon blue">🛡️</div>
+        <h3>DO-owned pricing</h3>
+        <p>The Worker never decides cost. It passes <code>call_type</code> to the DO which owns the price table. No split billing authority. No future maintainer footguns.</p>
+      </div>
+      <div class="feature-card green reveal">
+        <div class="feature-icon green">🤖</div>
+        <h3>Zero human in the loop</h3>
+        <p>Agents pay via MPP → verify on-chain → auto-mint key → start calling. No signup form, no email, no admin needed between deploy and first revenue.</p>
+      </div>
+    </div>
+
+    <div class="stats-row reveal">
+      <div class="stat-card">
+        <div class="stat-number" style="color:var(--green)">7</div>
+        <div class="stat-label">versions shipped</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:#818cf8">3</div>
+        <div class="stat-label">white-hat audits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:var(--gold)">35</div>
+        <div class="stat-label">attack scenarios</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:var(--green)">0</div>
+        <div class="stat-label">open findings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:var(--pink)">1</div>
+        <div class="stat-label">file to deploy</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how-it-works">
+    <p class="section-label reveal">The architecture</p>
+    <h2 class="reveal">One Worker. One DO.<br>Everything atomic.</h2>
+    <p class="section-intro reveal">
+      The Durable Object is the single source of truth for auth, pricing, scoping, and charging.
+      The Worker is a thin router that converts HTTP → DO RPC.
+    </p>
+
+    <div class="flow-container reveal" id="flow-steps">
+      <div class="flow-step" style="transition-delay:0.0s">
+        <div class="flow-dot green">🌍</div>
+        <div class="flow-label">Agent</div>
+        <div class="flow-desc">sends POST with Bearer token</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="transition-delay:0.15s">
+        <div class="flow-dot blue">⚡</div>
+        <div class="flow-label">Worker</div>
+        <div class="flow-desc">validates body shape, no charge yet</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="transition-delay:0.3s">
+        <div class="flow-dot gold">🔒</div>
+        <div class="flow-label">DO Charge</div>
+        <div class="flow-desc">blockConcurrencyWhile — scope, balance, debit</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="transition-delay:0.45s">
+        <div class="flow-dot pink">💾</div>
+        <div class="flow-label">SQLite</div>
+        <div class="flow-desc">hashed key record persisted atomically</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="transition-delay:0.6s">
+        <div class="flow-dot green">✅</div>
+        <div class="flow-label">Response</div>
+        <div class="flow-desc">result + remaining balance returned</div>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:4rem">
+      <div class="reveal">
+        <h3 style="font-size:1.1rem;margin-bottom:1rem;color:var(--muted)">Add a paid endpoint in 30 seconds</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dot red"></div>
+            <div class="code-dot yellow"></div>
+            <div class="code-dot green"></div>
+            <span class="code-filename">src/index.ts</span>
+          </div>
+          <div class="code-body"><pre><span class="t-comment">// 1. Validate body first — no charge on bad shape</span>
+<span class="t-kw">const</span> <span class="t-key">body</span> = <span class="t-kw">await</span> parseBody(req);
+<span class="t-kw">if</span> (!body.query) <span class="t-kw">return</span> error(<span class="t-str">400</span>, <span class="t-str">"no charge"</span>);
+
+<span class="t-comment">// 2. Auth + atomic charge via DO</span>
+<span class="t-kw">const</span> <span class="t-key">auth</span> = <span class="t-kw">await</span> authAndCharge(req, env, <span class="t-str">"search"</span>);
+<span class="t-kw">if</span> (auth <span class="t-kw">instanceof</span> Response) <span class="t-kw">return</span> auth;
+
+<span class="t-comment">// 3. Do the actual work</span>
+<span class="t-kw">const</span> <span class="t-key">result</span> = <span class="t-kw">await</span> doSearch(body.query);
+<span class="t-kw">return</span> json({ ok: <span class="t-kw">true</span>, result,
+  balance_mcents: auth.record.balance_mcents });</pre></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <h3 style="font-size:1.1rem;margin-bottom:1rem;color:var(--muted)">Pricing table lives in the DO</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dot red"></div>
+            <div class="code-dot yellow"></div>
+            <div class="code-dot green"></div>
+            <span class="code-filename">src/index.ts — DO-owned</span>
+          </div>
+          <div class="code-body"><pre><span class="t-comment">// Single source of truth. Worker never touches this.</span>
+<span class="t-kw">const</span> <span class="t-key">PRICE_MCENTS</span>: Record&lt;<span class="t-type">CallType</span>, <span class="t-type">number</span>&gt; = {
+  example: <span class="t-str">100</span>,   <span class="t-comment">// $0.001</span>
+  search:  <span class="t-str">250</span>,   <span class="t-comment">// $0.0025</span>
+  read:    <span class="t-str">0</span>,     <span class="t-comment">// free</span>
+};
+
+<span class="t-comment">// One scope per endpoint. Default-deny.</span>
+<span class="t-kw">const</span> <span class="t-key">SCOPE_FOR</span> = {
+  example: <span class="t-str">"example"</span>,
+  search:  <span class="t-str">"search"</span>,
+  read:    <span class="t-str">"read"</span>,
+};</pre></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENTS -->
+  <section id="agents">
+    <p class="section-label reveal">Agent payments</p>
+    <h2 class="reveal">Agents self-serve.<br>No human needed.</h2>
+    <p class="section-intro reveal">
+      Enable <code style="color:var(--green)">/v1/signup</code> with Tempo or Stripe secrets.
+      Agents discover, pay, and call — fully autonomously via Machine Payments Protocol.
+    </p>
+
+    <div class="two-col reveal">
+      <div>
+        <h3 style="font-size:1rem;color:var(--muted);margin-bottom:1.5rem">The autonomous signup flow</h3>
+
+        <div style="display:flex;flex-direction:column;gap:1rem">
+          <div class="card" style="border-left:3px solid var(--blue)">
+            <div style="font-size:0.75rem;color:var(--blue);font-family:monospace;margin-bottom:0.5rem">STEP 1</div>
+            <code style="color:var(--text);font-size:0.85rem">POST /v1/signup</code>
+            <p style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Agent discovers the endpoint, no auth yet.</p>
+          </div>
+          <div class="card" style="border-left:3px solid var(--gold)">
+            <div style="font-size:0.75rem;color:var(--gold);font-family:monospace;margin-bottom:0.5rem">STEP 2</div>
+            <code style="color:var(--text);font-size:0.85rem">← 402 WWW-Authenticate: Payment method="tempo"</code>
+            <p style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Server returns MPP challenge. Agent picks Tempo or Stripe.</p>
+          </div>
+          <div class="card" style="border-left:3px solid var(--pink)">
+            <div style="font-size:0.75rem;color:var(--pink);font-family:monospace;margin-bottom:0.5rem">STEP 3</div>
+            <code style="color:var(--text);font-size:0.85rem">Agent pays $0.10 on-chain or by card</code>
+            <p style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Sub-second on Tempo. Standard processing on Stripe.</p>
+          </div>
+          <div class="card" style="border-left:3px solid var(--green)">
+            <div style="font-size:0.75rem;color:var(--green);font-family:monospace;margin-bottom:0.5rem">STEP 4</div>
+            <code style="color:var(--text);font-size:0.85rem">← 200 {"key":"mcp_...","balance_mcents":10000}</code>
+            <p style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Key minted atomically. 100 calls included. Go.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-size:1rem;color:var(--muted);margin-bottom:1.5rem">Enable in 3 secrets</h3>
+        <div class="terminal">
+          <div class="term-header">
+            <div class="code-dot red"></div>
+            <div class="code-dot yellow"></div>
+            <div class="code-dot green"></div>
+          </div>
+          <div class="term-body">
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler secret put TEMPO_RECIPIENT</span></div>
+            <div class="term-out"># your wallet address (0x...)</div>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler secret put TEMPO_CURRENCY</span></div>
+            <div class="term-out"># USDC token on Tempo network</div>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler secret put MPP_SECRET_KEY</span></div>
+            <div class="term-out"># openssl rand -hex 32</div>
+            <br>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler deploy</span></div>
+            <div class="term-success">✓  /v1/signup live — agents can self-serve</div>
+            <br>
+            <div class="term-out"># also supports Stripe cards:</div>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler secret put STRIPE_SECRET_KEY</span></div>
+            <div class="term-success">✓  both methods active simultaneously</div>
+          </div>
+        </div>
+
+        <div class="badge-row" style="margin-top:1.5rem">
+          <div class="badge green">✓ x402 backwards-compat</div>
+          <div class="badge blue">✓ MPP native</div>
+          <div class="badge gold">✓ Separate rate windows</div>
+          <div class="badge green">✓ 1000 signups/hr cap</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICKSTART -->
+  <section id="quickstart">
+    <p class="section-label reveal">Get started</p>
+    <h2 class="reveal">From zero to<br>charging agents in 2 min</h2>
+
+    <div class="two-col reveal" style="margin-top:2rem">
+      <div>
+        <div class="terminal">
+          <div class="term-header">
+            <div class="code-dot red"></div>
+            <div class="code-dot yellow"></div>
+            <div class="code-dot green"></div>
+            <span style="font-size:0.72rem;color:#475569;margin-left:0.5rem">terminal</span>
+          </div>
+          <div class="term-body">
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">npx create-mcpay my-api</span></div>
+            <div class="term-success">✓  Scaffolded my-api/</div>
+            <br>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">cd my-api && npm install</span></div>
+            <br>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler secret put ADMIN_KEY</span></div>
+            <div class="term-out"># random 32-hex string</div>
+            <br>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">wrangler deploy</span></div>
+            <div class="term-success">✓  Deployed to workers.dev</div>
+            <br>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd">curl -X POST https://my-api.workers.dev/v1/admin/mint \</span></div>
+            <div class="term-out">  -H "X-Admin-Key: $ADMIN_KEY" \</div>
+            <div class="term-out">  -d '{"balance_mcents":10000,"scopes":["example"]}'</div>
+            <div class="term-json">{"ok":true,"key":"mcp_...","balance_mcents":10000}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1.5rem">
+        <div class="card">
+          <h3 style="font-size:0.95rem;margin-bottom:0.75rem">🗂 What you get</h3>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem">
+            <li style="font-size:0.85rem;color:var(--muted)">✓ <code style="color:var(--text)">POST /v1/example</code> — paid endpoint (100mc)</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ <code style="color:var(--text)">POST /v1/admin/mint</code> — key management</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ <code style="color:var(--text)">POST /v1/signup</code> — MPP self-serve (opt-in)</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ <code style="color:var(--text)">GET /v1/pricing</code> — public price list</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ <code style="color:var(--text)">GET /v1/health</code> — liveness check</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:0.95rem;margin-bottom:0.75rem">🔐 Security out of the box</h3>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem">
+            <li style="font-size:0.85rem;color:var(--muted)">✓ Tokens SHA-256 hashed, never stored raw</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ Atomic charging — no overdraft under burst</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ Validate-before-charge on every handler</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ No CORS on admin routes</li>
+            <li style="font-size:0.85rem;color:var(--muted)">✓ Admin mint rate-limited (10/hr in DO)</li>
+          </ul>
+        </div>
+
+        <div class="card" style="border-color:rgba(0,255,136,0.2)">
+          <h3 style="font-size:0.95rem;margin-bottom:0.5rem">💡 1 mcent = 1/1000¢</h3>
+          <p style="font-size:0.85rem;color:var(--muted)">100mc per call = $0.001. Mint 10,000mc for $0.10 of API credit. Set any price you want in the DO's <code>PRICE_MCENTS</code> table.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-section reveal">
+    <h2>Ready to charge agents?</h2>
+    <p>One command. One file. No database setup, no auth service, no payment processor boilerplate.</p>
+    <div class="btn-row">
+      <a href="https://github.com/walter-grace/create-mcpay" class="btn btn-primary">
+        View on GitHub ↗
+      </a>
+      <a href="https://www.npmjs.com/package/create-mcpay" class="btn btn-ghost">
+        npm package ↗
+      </a>
+    </div>
+  </div>
+
+  <footer>
+    <p>
+      <a href="https://github.com/walter-grace/create-mcpay">create-mcpay</a> ·
+      MIT License ·
+      Built on <a href="https://workers.cloudflare.com">Cloudflare Workers</a> ·
+      Payments via <a href="https://mpp.dev">MPP</a>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+// CANVAS — animated agent payment network
+// ============================================================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H, nodes, animFrame;
+
+const COLORS = {
+  green: '#00ff88',
+  blue:  '#6366f1',
+  gold:  '#f59e0b',
+  pink:  '#ec4899',
+};
+const PALETTE = Object.values(COLORS);
+
+class Node {
+  constructor() { this.reset(true); }
+
+  reset(init = false) {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.vy = (Math.random() - 0.5) * 0.4;
+    this.r  = 3 + Math.random() * 3;
+    this.color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+    this.pulse = 0;
+    this.label = ['🤖','⚡','💳','🔑','💰'][Math.floor(Math.random()*5)];
+    this.labelTimer = 0;
+    if (!init) { this.x = -20; this.y = Math.random() * H; }
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.x < -50 || this.x > W+50 || this.y < -50 || this.y > H+50) this.reset();
+    if (this.pulse > 0) this.pulse -= 0.03;
+    if (this.labelTimer > 0) this.labelTimer -= 1;
+  }
+
+  draw() {
+    const glow = this.pulse > 0 ? this.pulse : 0;
+    if (glow > 0) {
+      ctx.save();
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 20 * glow;
+    }
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r + glow * 4, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = 0.7 + glow * 0.3;
+    ctx.fill();
+    if (glow > 0) ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  trigger() { this.pulse = 1; this.labelTimer = 40; }
+}
+
+class Packet {
+  constructor(src, dst) {
+    this.src = src;
+    this.dst = dst;
+    this.t = 0;
+    this.speed = 0.008 + Math.random() * 0.006;
+    this.color = src.color;
+  }
+
+  update() { this.t += this.speed; return this.t >= 1; }
+
+  draw() {
+    const x = this.src.x + (this.dst.x - this.src.x) * this.t;
+    const y = this.src.y + (this.dst.y - this.src.y) * this.t;
+    ctx.save();
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = 0.9 * (1 - Math.abs(this.t - 0.5) * 1.5);
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+}
+
+let packets = [];
+
+function setup() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  nodes = Array.from({length: 28}, () => new Node());
+}
+
+function drawEdges() {
+  const maxDist = Math.min(W, H) * 0.28;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i+1; j < nodes.length; j++) {
+      const dx = nodes[i].x - nodes[j].x;
+      const dy = nodes[i].y - nodes[j].y;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+      if (d < maxDist) {
+        const alpha = (1 - d / maxDist) * 0.12;
+        ctx.beginPath();
+        ctx.moveTo(nodes[i].x, nodes[i].y);
+        ctx.lineTo(nodes[j].x, nodes[j].y);
+        ctx.strokeStyle = nodes[i].color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
+
+let packetTimer = 0;
+function spawnPacket() {
+  if (nodes.length < 2) return;
+  const src = nodes[Math.floor(Math.random() * nodes.length)];
+  let dst = nodes[Math.floor(Math.random() * nodes.length)];
+  while (dst === src) dst = nodes[Math.floor(Math.random() * nodes.length)];
+  packets.push(new Packet(src, dst));
+}
+
+function tick() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(5,5,16,0.15)';
+  ctx.fillRect(0, 0, W, H);
+
+  drawEdges();
+  nodes.forEach(n => { n.update(); n.draw(); });
+
+  packets = packets.filter(p => {
+    const done = p.update();
+    p.draw();
+    if (done) p.dst.trigger();
+    return !done;
+  });
+
+  packetTimer++;
+  if (packetTimer % 18 === 0) spawnPacket();
+
+  animFrame = requestAnimationFrame(tick);
+}
+
+setup();
+window.addEventListener('resize', setup);
+tick();
+
+// ============================================================
+// COPY COMMAND
+// ============================================================
+function copyCmd(el) {
+  navigator.clipboard.writeText('npx create-mcpay my-api').catch(() => {});
+  const hint = document.getElementById('copy-hint');
+  hint.textContent = 'copied!';
+  hint.classList.add('copied');
+  setTimeout(() => {
+    hint.textContent = 'click to copy';
+    hint.classList.remove('copied');
+  }, 2000);
+}
+
+// ============================================================
+// SCROLL REVEAL
+// ============================================================
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // Animate flow steps
+      if (e.target.id === 'flow-steps') {
+        e.target.querySelectorAll('.flow-step').forEach((s, i) => {
+          setTimeout(() => s.classList.add('visible'), i * 150);
+        });
+      }
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
