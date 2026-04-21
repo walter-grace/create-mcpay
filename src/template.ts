@@ -1,7 +1,7 @@
 /**
  * mcpay template — single-file Cloudflare Worker for pay-per-call agent APIs.
  *
- * v0.5.0 architecture: the Durable Object is the SINGLE SOURCE OF TRUTH for
+ * v0.6.0 architecture: the Durable Object is the SINGLE SOURCE OF TRUTH for
  * auth, pricing, scoping, and charging. The Worker is a thin router that
  * converts HTTP → DO RPC. It does NOT know prices. It does NOT enforce
  * scopes. It does NOT compute fees. This closes a structural blind spot
@@ -28,11 +28,32 @@
  *   - No CORS on /v1/admin/*. Bounded body reads. mcp_ service prefix.
  *   - Never log Authorization headers — wrangler tail is visible to
  *     anyone with CF dashboard access.
+ *
+ * MPP signup (/v1/signup) — opt-in, set TEMPO_RECIPIENT or STRIPE_RECIPIENT:
+ *   Agents pay in crypto (Tempo/USDC) or card (Stripe) via Machine Payments
+ *   Protocol. On verified payment the DO auto-mints a bearer key. No human
+ *   needed in the loop. x402 clients work unchanged (MPP is backwards-compat).
  */
+
+import { Mppx, tempo, stripe } from "mppx/server";
 
 export interface Env {
   LEADERBOARD: DurableObjectNamespace;
   ADMIN_KEY: string;
+
+  // ---- MPP signup (all optional — omit to disable /v1/signup) --------------
+  // Tempo (stablecoin on Tempo network, sub-second settlement)
+  TEMPO_RECIPIENT?: string;   // your Base/Tempo wallet address
+  TEMPO_CURRENCY?: string;    // USDC token address on Tempo network
+  // Stripe (card, wallet — requires Machine Payments enabled on account)
+  STRIPE_RECIPIENT?: string;  // your Stripe Business Network recipient ID
+  STRIPE_NETWORK_ID?: string; // Stripe Business Network ID
+  STRIPE_SECRET_KEY?: string; // Stripe secret key (sk_live_... or sk_test_...)
+  // Shared
+  MPP_SECRET_KEY?: string;    // HMAC key for challenge integrity (auto-generated if unset)
+  SIGNUP_PRICE_CENTS?: string;              // USD cents, default "10" ($0.10)
+  DEFAULT_SIGNUP_BALANCE_MCENTS?: string;   // mcents minted per signup, default "10000"
+  DEFAULT_SIGNUP_SCOPES?: string;           // comma-separated scopes, default "example"
 }
 
 // ---- Types -----------------------------------------------------------------
@@ -360,6 +381,118 @@ async function handleAdminMint(req: Request, env: Env): Promise<Response> {
   }, { status: 200 }, false);
 }
 
+// ---- MPP signup: pay once → get a bearer key ------------------------------
+//
+// Supports Tempo (stablecoin), Stripe (card/wallet), or both simultaneously.
+// Enable by setting TEMPO_RECIPIENT and/or STRIPE_RECIPIENT in wrangler secrets.
+//
+// Flow (MPP charge intent, x402-compatible):
+//   1. Agent POST /v1/signup → 402 WWW-Authenticate: Payment (per configured method)
+//   2. Agent pays on-chain or via card, retries with Authorization: Payment
+//   3. mppx verifies the credential → Worker mints a key → returns it once
+//
+// The key is minted via the same DO path as admin mint, so all security
+// invariants (hashed token, scoped, balance cap) apply identically.
+
+async function handleSignup(req: Request, env: Env): Promise<Response> {
+  const priceCents = Math.max(1, parseInt(env.SIGNUP_PRICE_CENTS || "10", 10) || 10);
+
+  const tempoEnabled = !!(env.TEMPO_RECIPIENT && env.TEMPO_CURRENCY);
+  const stripeEnabled = !!(env.STRIPE_RECIPIENT && env.STRIPE_NETWORK_ID && env.STRIPE_SECRET_KEY);
+
+  if (!tempoEnabled && !stripeEnabled) {
+    return json(
+      { ok: false, error: "signup not configured — set TEMPO_RECIPIENT or STRIPE_RECIPIENT+STRIPE_SECRET_KEY" },
+      { status: 501 }
+    );
+  }
+
+  // Static method config (currency/keys/network) — amount is per-call via compose.
+  type AnyChargeMethod = ReturnType<typeof tempo.charge | typeof stripe.charge>;
+  const methods: AnyChargeMethod[] = [];
+
+  if (tempoEnabled) {
+    methods.push(tempo.charge({
+      currency: env.TEMPO_CURRENCY as unknown as `0x${string}`,
+      recipient: env.TEMPO_RECIPIENT as unknown as `0x${string}`,
+      decimals: 6,
+      description: "mcpay API key signup",
+    }));
+  }
+
+  if (stripeEnabled) {
+    methods.push(stripe.charge({
+      secretKey: env.STRIPE_SECRET_KEY!,
+      networkId: env.STRIPE_NETWORK_ID!,
+      paymentMethodTypes: ["card"],
+      currency: "usd",
+      decimals: 2,
+      description: "mcpay API key signup",
+    }));
+  }
+
+  const mppx = Mppx.create({ methods, secretKey: env.MPP_SECRET_KEY, realm: new URL(req.url).hostname });
+
+  // compose() presents all configured methods in a single 402 — client picks one.
+  // mppx.tempo / mppx.stripe are typed dynamically, so cast for conditional access.
+  const m = mppx as any;
+  const entries: any[] = [];
+  if (tempoEnabled)  entries.push(m.tempo.charge({ amount: String(priceCents * 10_000) }));
+  if (stripeEnabled) entries.push(m.stripe.charge({ amount: String(priceCents) }));
+
+  let result: any;
+  try {
+    result = await m.compose(...entries)(req);
+  } catch (err: any) {
+    return error(500, `mpp error: ${err?.message ?? err}`);
+  }
+
+  // 402 → return the challenge response mppx built (has WWW-Authenticate header)
+  if (result.status === 402) return result.challenge;
+
+  // Payment verified — mint a key
+  const balance_mcents = Math.min(
+    MAX_MINT_MCENTS,
+    Math.max(0, parseInt(env.DEFAULT_SIGNUP_BALANCE_MCENTS || "10000", 10) || 10_000)
+  );
+
+  const validScopes: Scope[] = ["example", "read", "all"];
+  const rawScopes = (env.DEFAULT_SIGNUP_SCOPES || "example").split(",").map((s) => s.trim());
+  const scopes: Scope[] = rawScopes.filter((s): s is Scope => validScopes.includes(s as Scope));
+  if (scopes.length === 0) scopes.push("example");
+
+  const key = generateApiKey();
+  const key_hash = await sha256Hex(key);
+  const now = Date.now();
+  const rec: KeyRecord = {
+    balance_mcents,
+    xp: 0,
+    created_at: now,
+    last_active_at: now,
+    calls_total: 0,
+    calls_by_type: {},
+    badges: [],
+    scopes,
+  };
+
+  const doResp = await doStub(env).fetch(new Request("https://do/mint", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ op: "mint", admin_key_attestation: env.ADMIN_KEY, key_hash, rec } as MintRequest),
+  }));
+  const r: any = await doResp.json();
+  if (!r.ok) return error(r.status || 500, r.error);
+
+  // withReceipt() wraps our response with the Payment-Receipt header so the
+  // client can verify the transaction settled on their end.
+  return result.withReceipt(
+    new Response(
+      JSON.stringify({ ok: true, key, key_shown_once: true, balance_mcents, scopes }),
+      { headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }
+    )
+  );
+}
+
 // ---- Example handler (replace with your own) ------------------------------
 // Pattern: validate body FIRST (no charge on bad shape), THEN authAndCharge.
 
@@ -411,6 +544,7 @@ export default {
 
     if (p === "/v1/health") return json({ ok: true, ts: Date.now() });
     if (p === "/v1/pricing") return json({ prices_mcents: PRICE_MCENTS });
+    if (p === "/v1/signup" && req.method === "POST") return handleSignup(req, env);
     if (p === "/v1/example" && req.method === "POST") return handleExample(req, env);
     if (p === "/v1/admin/mint" && req.method === "POST") return handleAdminMint(req, env);
 

@@ -33,9 +33,9 @@ fs.writeFileSync(path.join(target, "wrangler.toml"), `name = "${projectName}"
 main = "src/index.ts"
 compatibility_date = "${new Date().toISOString().slice(0, 10)}"
 
-# v0.3.0: balances and charging live in the Durable Object (atomic via
-# blockConcurrencyWhile). KV is no longer used by the template — bearer
-# tokens and records are stored under SHA-256 hashes inside DO storage.
+# Balances and charging live in the Durable Object (atomic via
+# blockConcurrencyWhile). KV is no longer used — bearer tokens and records
+# are stored under SHA-256 hashes inside DO storage.
 
 [[durable_objects.bindings]]
 name = "LEADERBOARD"
@@ -44,6 +44,28 @@ class_name = "LeaderboardDO"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["LeaderboardDO"]
+
+# ---- Required secrets (wrangler secret put <NAME>) -------------------------
+# ADMIN_KEY        random 32-hex string; gates /v1/admin/mint
+
+# ---- Optional: MPP signup — enables /v1/signup for autonomous key minting --
+# Agents pay via Tempo (stablecoin), Stripe (card), or both. Set at least one
+# payment method to activate the endpoint.
+#
+# Tempo (stablecoin, sub-second settlement on Tempo network):
+#   TEMPO_RECIPIENT   your wallet address to receive USDC
+#   TEMPO_CURRENCY    USDC token address on the Tempo network
+#
+# Stripe (card/wallet — Machine Payments must be enabled on your account):
+#   STRIPE_RECIPIENT   your Stripe Business Network recipient ID
+#   STRIPE_NETWORK_ID  your Stripe Business Network ID
+#   STRIPE_SECRET_KEY  your Stripe secret key (sk_live_... or sk_test_...)
+#
+# Shared:
+#   MPP_SECRET_KEY              HMAC secret for challenge integrity (recommended)
+#   SIGNUP_PRICE_CENTS          price in USD cents, default 10 ($0.10)
+#   DEFAULT_SIGNUP_BALANCE_MCENTS  mcents to mint per signup, default 10000 (100 calls)
+#   DEFAULT_SIGNUP_SCOPES       comma-separated scopes, default "example"
 `);
 
 fs.writeFileSync(path.join(target, "package.json"), JSON.stringify({
@@ -54,6 +76,9 @@ fs.writeFileSync(path.join(target, "package.json"), JSON.stringify({
     deploy: "wrangler deploy",
     dev: "wrangler dev",
     tail: "wrangler tail",
+  },
+  dependencies: {
+    mppx: "^0.5.0",
   },
   devDependencies: {
     "@cloudflare/workers-types": "^4.20240909.0",
@@ -85,17 +110,37 @@ Scaffolded with [create-mcpay](https://npm.im/create-mcpay).
 
 \`\`\`bash
 npm install
-wrangler kv:namespace create KEYS
-# Paste the KV id into wrangler.toml
-wrangler secret put ADMIN_KEY       # random 32-hex; use for /v1/admin/*
+wrangler secret put ADMIN_KEY       # random 32-hex; gates /v1/admin/mint
 wrangler deploy
+\`\`\`
+
+## Enable MPP signup (optional)
+
+Lets agents self-serve API keys by paying with Tempo (stablecoin), Stripe (card), or both.
+Set at least one payment method's secrets and \`/v1/signup\` activates automatically.
+
+\`\`\`bash
+# Tempo stablecoin
+wrangler secret put TEMPO_RECIPIENT   # your wallet address
+wrangler secret put TEMPO_CURRENCY    # USDC token address on Tempo network
+wrangler secret put MPP_SECRET_KEY    # openssl rand -hex 32
+
+# Stripe card (also requires Machine Payments enabled on your Stripe account)
+wrangler secret put STRIPE_RECIPIENT
+wrangler secret put STRIPE_NETWORK_ID
+wrangler secret put STRIPE_SECRET_KEY
+
+# Optional tuning
+wrangler secret put SIGNUP_PRICE_CENTS             # default: 10 ($0.10)
+wrangler secret put DEFAULT_SIGNUP_BALANCE_MCENTS  # default: 10000 (100 calls)
+wrangler secret put DEFAULT_SIGNUP_SCOPES          # default: example
 \`\`\`
 
 ## Next steps
 
 - Replace \`handleExample\` in \`src/index.ts\` with your actual paid tools
-- Add x402 signup (see the full example in the data-label-factory repo)
 - Ship a \`/llms.txt\` and \`/.well-known/mcp.json\` for Agent Readiness
+- See [mpp.dev](https://mpp.dev) for the full MPP protocol docs
 `);
 
 console.log(`✓ Scaffolded ${projectName}/`);
