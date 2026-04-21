@@ -477,6 +477,149 @@
   }
   .btn-ghost:hover { border-color: rgba(255,255,255,0.2); }
 
+  /* ---- Transform section ---- */
+  #transform { padding: 5rem 2rem; }
+  #transform .section-label { color: var(--green); }
+  .transform-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+  @media (max-width: 860px) { .transform-grid { grid-template-columns: 1fr; } }
+  .transform-panel {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .tp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: monospace;
+  }
+  .tp-header span { color: var(--text); font-weight: 600; }
+  .tp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 0.5rem; }
+  .tp-dot.blue { background: var(--blue); }
+  .tp-textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    padding: 1rem;
+    resize: none;
+    min-height: 260px;
+  }
+  .tp-textarea::placeholder { color: rgba(255,255,255,0.2); }
+  .tp-output {
+    flex: 1;
+    padding: 1rem;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--text);
+    min-height: 260px;
+    white-space: pre-wrap;
+    overflow-y: auto;
+  }
+  .tp-output.empty { color: rgba(255,255,255,0.2); font-style: italic; }
+  .tp-output .kw  { color: #818cf8; }
+  .tp-output .fn  { color: var(--green); }
+  .tp-output .str { color: var(--gold); }
+  .tp-output .cmt { color: rgba(255,255,255,0.3); }
+  .transform-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .ctrl-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 600px) { .ctrl-row { grid-template-columns: 1fr 1fr; } }
+  .ctrl-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .ctrl-group label { font-size: 0.72rem; color: var(--muted); font-family: monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+  .ctrl-input {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem;
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .ctrl-input:focus { border-color: rgba(0,255,136,0.4); }
+  .ctrl-input[type=password] { letter-spacing: 0.1em; }
+  .ctrl-input::placeholder { color: rgba(255,255,255,0.2); }
+  .api-key-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    justify-content: flex-end;
+  }
+  .btn-transform {
+    padding: 0.6rem 2rem;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: box-shadow 0.2s, opacity 0.2s;
+    box-shadow: 0 0 20px rgba(0,255,136,0.25);
+  }
+  .btn-transform:hover { box-shadow: 0 0 40px rgba(0,255,136,0.5); }
+  .btn-transform:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-copy-out {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    padding: 0.25rem 0.65rem;
+    cursor: pointer;
+    font-family: monospace;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-copy-out:hover { border-color: var(--green); color: var(--green); }
+  .transform-note {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.25);
+    margin-top: 0.75rem;
+    text-align: center;
+    font-family: monospace;
+  }
+  .transform-note a { color: rgba(0,255,136,0.5); text-decoration: none; }
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 0.4rem;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
   /* ---- Footer ---- */
   footer {
     border-top: 1px solid var(--border);
@@ -507,6 +650,7 @@
     <a href="#features">Features</a>
     <a href="#how-it-works">How it works</a>
     <a href="#agents">With agents</a>
+    <a href="#transform" style="color:var(--green)">Transform your API ✦</a>
     <a href="#quickstart">Quickstart</a>
   </div>
   <div class="nav-badge">v0.7.0</div>
@@ -581,18 +725,6 @@
       <div class="stat-card">
         <div class="stat-number" style="color:var(--green)">7</div>
         <div class="stat-label">versions shipped</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" style="color:#818cf8">3</div>
-        <div class="stat-label">white-hat audits</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" style="color:var(--gold)">35</div>
-        <div class="stat-label">attack scenarios</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" style="color:var(--green)">0</div>
-        <div class="stat-label">open findings</div>
       </div>
       <div class="stat-card">
         <div class="stat-number" style="color:var(--pink)">1</div>
@@ -830,6 +962,59 @@
     </div>
   </section>
 
+  <!-- TRANSFORM -->
+  <section id="transform" class="reveal">
+    <div style="max-width:900px;margin:0 auto">
+      <div class="section-label">✦ AI-powered sandbox</div>
+      <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);margin-bottom:0.75rem">Transform your API in seconds</h2>
+      <p style="color:var(--muted);font-size:1rem;max-width:560px">Paste any Cloudflare Worker handler. Claude rewrites it with validate-before-charge, atomic billing, and scoped auth — production-ready.</p>
+
+      <div class="transform-controls">
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>Endpoint name</label>
+            <input id="tx-name" class="ctrl-input" type="text" placeholder="e.g. summarize" value="mytool" />
+          </div>
+          <div class="ctrl-group">
+            <label>Price (mcents)</label>
+            <input id="tx-price" class="ctrl-input" type="number" placeholder="100" value="100" min="1" />
+          </div>
+          <div class="ctrl-group">
+            <label>Scope name</label>
+            <input id="tx-scope" class="ctrl-input" type="text" placeholder="e.g. summarize" value="mytool" />
+          </div>
+        </div>
+        <div class="api-key-row">
+          <button class="btn-transform" id="tx-btn" onclick="runTransform()">
+            <span id="tx-btn-label">Transform →</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="transform-grid" style="margin-top:1.5rem">
+        <div class="transform-panel">
+          <div class="tp-header">
+            <div><span class="tp-dot blue"></span><span>Your handler</span></div>
+            <div>paste your code ↓</div>
+          </div>
+          <textarea id="tx-input" class="tp-textarea" spellcheck="false" placeholder="async function handleSummarize(req, env) {
+  const { text } = await req.json();
+  const result = await callOpenAI(text);
+  return Response.json({ summary: result });
+}"></textarea>
+        </div>
+        <div class="transform-panel">
+          <div class="tp-header">
+            <div><span class="tp-dot" id="tx-live-dot" style="display:none"></span><span>mcpay endpoint</span></div>
+            <button class="btn-copy-out" onclick="copyOutput()" id="tx-copy-btn" style="display:none">copy</button>
+          </div>
+          <div id="tx-output" class="tp-output empty">// output will appear here as Claude streams it…</div>
+        </div>
+      </div>
+      <p class="transform-note">Powered by Claude via OpenRouter · no account required · your code is never stored</p>
+    </div>
+  </section>
+
   <!-- CTA -->
   <div class="cta-section reveal">
     <h2>Ready to charge agents?</h2>
@@ -1037,6 +1222,105 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ============================================================
+// TRANSFORM — streams via mcpay-transform Cloudflare Worker
+// ============================================================
+const TRANSFORM_URL = 'https://mcpay-transform.agentlabel.workers.dev/transform';
+
+let transforming = false;
+let outputText = '';
+
+function setTransformState(busy) {
+  transforming = busy;
+  const btn = document.getElementById('tx-btn');
+  const label = document.getElementById('tx-btn-label');
+  const dot = document.getElementById('tx-live-dot');
+  btn.disabled = busy;
+  label.textContent = busy ? 'Streaming…' : 'Transform →';
+  dot.style.display = busy ? 'inline-block' : 'none';
+}
+
+function copyOutput() {
+  navigator.clipboard.writeText(outputText).catch(() => {});
+  const btn = document.getElementById('tx-copy-btn');
+  btn.textContent = 'copied!';
+  setTimeout(() => { btn.textContent = 'copy'; }, 2000);
+}
+
+function renderOutput(text) {
+  outputText = text;
+  const el = document.getElementById('tx-output');
+  el.classList.remove('empty');
+  const escaped = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const highlighted = escaped
+    .replace(/(\/\/[^\n]*)/g, '<span class="cmt">$1</span>')
+    .replace(/\b(async|function|const|let|return|if|await|instanceof|typeof|throw|new|true|false|null|undefined)\b/g, '<span class="kw">$1</span>')
+    .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, '<span class="str">$1</span>')
+    .replace(/\b(authAndCharge|handleMint|json|error|Response)\b/g, '<span class="fn">$1</span>');
+  el.innerHTML = highlighted;
+}
+
+async function runTransform() {
+  if (transforming) return;
+  const name  = document.getElementById('tx-name').value.trim() || 'mytool';
+  const price = parseInt(document.getElementById('tx-price').value) || 100;
+  const scope = document.getElementById('tx-scope').value.trim() || name;
+  const code  = document.getElementById('tx-input').value.trim();
+
+  if (!code) { alert('Paste your handler code on the left.'); return; }
+
+  setTransformState(true);
+  const copyBtn = document.getElementById('tx-copy-btn');
+  copyBtn.style.display = 'none';
+  renderOutput('');
+
+  let accumulated = '';
+
+  try {
+    const resp = await fetch(TRANSFORM_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, name, price, scope }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.error || `HTTP ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = dec.decode(value, { stream: true });
+      for (const line of chunk.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const evt = JSON.parse(data);
+          // OpenAI-compatible SSE: choices[0].delta.content
+          const delta = evt.choices?.[0]?.delta?.content;
+          if (delta) {
+            accumulated += delta;
+            renderOutput(accumulated);
+            const el = document.getElementById('tx-output');
+            el.scrollTop = el.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+    copyBtn.style.display = 'inline-block';
+  } catch (err) {
+    renderOutput(`// Error: ${err.message}`);
+  } finally {
+    setTransformState(false);
+  }
+}
 </script>
 
 </body>
