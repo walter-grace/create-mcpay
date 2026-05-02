@@ -54,7 +54,7 @@ See `src/template.ts` header comment for the full list.
 └──────────────┘                        │   /v1/admin/mint (admin-only)  │
                                          │                                │
                                          │   ┌────────────────────────┐   │
-                                         │   │ LeaderboardDO          │   │
+                                         │   │ BillingDO              │   │
                                          │   │  - atomic charging     │   │
                                          │   │  - stores hashed keys  │   │
                                          │   │  - blockConcurrency…   │   │
@@ -95,9 +95,9 @@ Add to `CallType`, `PRICE_MCENTS`, `XP_AWARD`, `SCOPE_FOR`, plus a scope string.
 
 ## What's NOT in the template (by design)
 
-- **x402 signup**, **leaderboard UI**, **MCP server**, **Agent Readiness `.well-known` routes** — these are product-specific; see [data-label-factory](https://github.com/walter-grace/data-label-factory)'s `agent-gateway/` for a reference that bolts them on.
-- **Refund policy** — depends on your failure modes. DLF's reference has a 5xx + rate-capped refund policy you can adapt.
-- **Rate limiting on `/v1/admin/mint`** — use Cloudflare's `[[unsafe.bindings]]` rate-limiter or a DO counter. The template assumes admin is trusted.
+- **Leaderboard UI**, **MCP server**, **Agent Readiness `.well-known` routes** — product-specific; bolt them on top of this template once you know what you need.
+- **Refund policy** — depends on your failure modes. A common pattern: refund on 5xx provider errors only, rate-capped (e.g. 5/hr/key) via a ring buffer inside the DO.
+- **Rate limiting on paid endpoints** — use Cloudflare's `[[unsafe.bindings]]` rate-limiter or a DO counter. The template assumes bearer key holders are trusted up to their balance.
 
 ## MPP signup — autonomous key minting
 

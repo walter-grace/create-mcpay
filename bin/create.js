@@ -34,24 +34,23 @@ main = "src/index.ts"
 compatibility_date = "${new Date().toISOString().slice(0, 10)}"
 compatibility_flags = ["nodejs_compat"]
 
-# Balances and charging live in the Durable Object (atomic via
-# blockConcurrencyWhile). KV is no longer used — bearer tokens and records
-# are stored under SHA-256 hashes inside DO storage.
+# BillingDO holds all auth, balances, and charging atomically.
+# Bearer tokens are stored as SHA-256 hashes — raw tokens never touch storage.
 
 [[durable_objects.bindings]]
-name = "LEADERBOARD"
-class_name = "LeaderboardDO"
+name = "BILLING"
+class_name = "BillingDO"
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["LeaderboardDO"]
+new_sqlite_classes = ["BillingDO"]
 
 # ---- Required secrets (wrangler secret put <NAME>) -------------------------
 # ADMIN_KEY        random 32-hex string; gates /v1/admin/mint
 
 # ---- Optional: MPP signup — enables /v1/signup for autonomous key minting --
 # Agents pay via Tempo (stablecoin), Stripe (card), or both. Set at least one
-# payment method to activate the endpoint.
+# payment method's secrets to activate the endpoint.
 #
 # Tempo (stablecoin, sub-second settlement on Tempo network):
 #   TEMPO_RECIPIENT   your wallet address to receive USDC
